@@ -8,7 +8,7 @@
 
 (ns swing.print
   {:author "Gunnar Völkel"}
-  (:use [clojure.contrib.core :only (-?>)]))
+  (:use [clojure.core.incubator :only (-?>)]))
 
 (defn print-component
   [c, title]
