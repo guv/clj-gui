@@ -6,7 +6,7 @@ FIXME: write short description.
 ## Install
 
 ```clj
-:dependencies [[clj-gui "0.2.0"]]
+:dependencies [[clj-gui "0.3.0"]]
 ```
 
 ## License
