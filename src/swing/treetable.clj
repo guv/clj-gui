@@ -71,6 +71,7 @@
       (.setAutoResizeMode tree-table JTable/AUTO_RESIZE_OFF)
       (.setRowHeight tree-table 20)    
       (.setRootVisible tree-table root-node-visible?)
+      (.setHorizontalScrollEnabled tree-table true)
       (when-not (nil? *tree-cell-renderer-factory*)
         (.setTreeCellRenderer tree-table (*tree-cell-renderer-factory* model)))
 

@@ -7,12 +7,11 @@
 ; You must not remove this notice, or any other, from this software.
 
 (ns swing.print
-  {:author "Gunnar Völkel"}
-  (:use [clojure.core.incubator :only (-?>)]))
+  {:author "Gunnar Völkel"})
 
 (defn print-component
   [c, title]
-  (when-let [job (-?> c .getToolkit (.getPrintJob c, title, nil, nil))]    
+  (when-let [job (some-> c .getToolkit (.getPrintJob c, title, nil, nil))]    
     (when-let [g (.getGraphics job)]
       (.printAll c, g)
       (.dispose g))
