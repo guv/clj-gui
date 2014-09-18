@@ -13,7 +13,8 @@
     (org.jdesktop.swingx.treetable AbstractTreeTableModel)
     (org.jdesktop.swingx.tree DefaultXTreeCellRenderer)
     (java.awt Dimension Color FlowLayout)
-    (javax.swing JScrollPane JFrame JTable JLabel SwingConstants)
+    (java.awt.event MouseListener MouseEvent ActionListener)
+    (javax.swing JScrollPane JFrame JTable JLabel SwingConstants JPopupMenu JMenuItem)
     (javax.swing.table DefaultTableCellRenderer)))
 
 
@@ -26,15 +27,19 @@
   (GetNodeType [this]))
 
 
+(defprotocol IInteractive
+  (context-menu-actions [this]))
+
+
 (deftype ColumnSpecification [column-name, column-width, cell-renderer])
  
 
 (defn- create-tree-table-model
   [root-node, column-specs]
-  (let [ column-count (count column-specs) ]
+  (let [column-count (count column-specs) ]
 	  (proxy [AbstractTreeTableModel] [ root-node ]
 	    (getColumnCount [] column-count)
-	    (getColumnName [column] (-> column-specs (nth column) (.column-name) ))     
+	    (getColumnName [column] (.column-name ^ColumnSpecification (nth column-specs column)))     
 	    (getChild [parent, index] (GetChild parent index))
 	    (getChildCount [parent] (GetChildCount parent))
 	    (isLeaf [node] (IsLeaf node))
@@ -51,18 +56,64 @@
    ~@body))
 
 
+(defn ^JPopupMenu popup-menu
+  [ table-frame, tree-table, context-menu-caption-fn-pairs]
+  (let [menu (JPopupMenu.)]
+    (doseq [[caption, f] context-menu-caption-fn-pairs
+            :let [item (JMenuItem. (str caption))]]
+      (.addActionListener item
+        (reify ActionListener
+          (actionPerformed [_, e]
+            (f table-frame, tree-table, e))))
+      (.add menu item))
+    menu))
+
+; int index = tree.getRowForPath(path);
+;                tree.getSelectionModel().setSelectionInterval(index, index);
+(defn show-popup
+  [table-frame, ^JXTreeTable tree-table, ^MouseEvent e]
+  (let [x (.getX e),
+        y (.getY e),
+        path (.getPathForLocation tree-table, x, y)
+        component (some-> path .getLastPathComponent)]
+    (when path
+      (let [index (.getRowForPath tree-table, path)]
+        (.. tree-table getSelectionModel (setSelectionInterval index, index))))
+    (when (satisfies? IInteractive component)
+      (when-let [context-menu-caption-fn-pairs (seq (context-menu-actions component))]
+        (doto (popup-menu table-frame, tree-table, context-menu-caption-fn-pairs)
+          (.show tree-table, x, y))))))
+
+
+(defn tree-table-action-listener
+  [table-frame, ^JXTreeTable tree-table]
+  (reify MouseListener
+    (mouseClicked  [this, e])
+    (mouseEntered  [this, e])
+    (mouseExited   [this, e])
+    (mousePressed  [this, e]
+      (when (.isPopupTrigger e)
+        (show-popup table-frame, tree-table, e)))
+    (mouseReleased [this, e]
+      (when (.isPopupTrigger e)
+        (show-popup table-frame, tree-table, e)))))
+
+
 (defn show-tree-table
-  ""
+  "Creates and shows a tree-table with the given root node.
+  Any node that implements IInteractive gets a context-menu when (context-menu-actions node) returns
+  a non-empty list of caption-function pairs. Functions are invoked with 3 parameters:
+  the frame containing the tree-table, the tree-table and the mouse event."
   ([root-node, column-specs, title, root-node-visible?]
     (show-tree-table   root-node, column-specs, title, root-node-visible?, 400, 300))  
-  ([root-node, column-specs, title, root-node-visible?,  width, height]    
+  ([root-node, column-specs, ^String title, root-node-visible?,  width, height]    
 	  (let [model ^AbstractTreeTableModel (create-tree-table-model root-node, column-specs),
           tree-table (JXTreeTable. model), 
           dim (Dimension. width height)]
       (loop [idx 0, col-spec-list column-specs]
         (when-not (empty? col-spec-list)
           (do
-            (let [ col-spec (first col-spec-list) ]
+            (let [^ColumnSpecification col-spec (first col-spec-list) ]
 	            (-> tree-table (.getColumnModel) (.getColumn idx) (.setPreferredWidth (.column-width col-spec) ) )
 	            (when-not (or (zero? idx) (nil? (.cell-renderer col-spec)) ) 
                 (-> tree-table (.getColumnModel) (.getColumn idx) (.setCellRenderer (.cell-renderer col-spec) ) )))
@@ -74,21 +125,23 @@
       (.setHorizontalScrollEnabled tree-table true)
       (when-not (nil? *tree-cell-renderer-factory*)
         (.setTreeCellRenderer tree-table (*tree-cell-renderer-factory* model)))
-
-	    (doto (JFrame. title)
-	     (.add (JScrollPane. tree-table))               
-	     (.setSize dim)
-	     (.setMinimumSize dim)
-	     (.setVisible true)
-       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
-	     (.pack)))))
+	    (let [frame (JFrame. title)]
+       (let [action-listener (tree-table-action-listener frame, tree-table)]
+        (.addMouseListener tree-table, action-listener))
+        (doto frame
+          (.add (JScrollPane. tree-table))               
+          (.setSize dim)
+          (.setMinimumSize dim)
+          (.setVisible true)
+          (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
+          (.pack))))))
 
 
 (defn create-cell-renderer [align, format-func]
   (proxy [DefaultTableCellRenderer] []
-    (getTableCellRendererComponent [^JTable table, ^Object obj, ^Boolean isSelected, ^Boolean hasFocus, ^Integer row, ^Integer column]
+    (getTableCellRendererComponent [table, obj, isSelected, hasFocus, row, column]
       (let [value (format-func obj),			      
-            renderer ^JLabel (proxy-super getTableCellRendererComponent table, value, isSelected, hasFocus, row, column)]
+            ^JLabel renderer (proxy-super getTableCellRendererComponent table, value, isSelected, hasFocus, row, column)]
         (doto renderer        
           (.setHorizontalAlignment align))))))
 
