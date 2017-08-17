@@ -8,6 +8,8 @@
 
 (ns swing.treetable
   {:author "Gunnar Völkel"}
+  (:require
+    [swing.super :as s])
   (:import
     (org.jdesktop.swingx JXTreeTable)
     (org.jdesktop.swingx.treetable AbstractTreeTableModel)
@@ -141,7 +143,7 @@
   (proxy [DefaultTableCellRenderer] []
     (getTableCellRendererComponent [table, obj, isSelected, hasFocus, row, column]
       (let [value (format-func obj),			      
-            ^JLabel renderer (proxy-super getTableCellRendererComponent table, value, isSelected, hasFocus, row, column)]
+            ^JLabel renderer (s/proxy-super-class DefaultTableCellRenderer, getTableCellRendererComponent table, value, isSelected, hasFocus, row, column)]
         (doto renderer        
           (.setHorizontalAlignment align))))))
 

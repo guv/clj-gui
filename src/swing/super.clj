@@ -6,13 +6,14 @@
 ; the terms of this license.
 ; You must not remove this notice, or any other, from this software.
 
-(ns swing.print
+(ns swing.super
   {:author "Gunnar Völkel"})
 
-(defn print-component
-  [c, title]
-  (when-let [job (some-> c .getToolkit (.getPrintJob c, title, nil, nil))]    
-    (when-let [g (.getGraphics job)]
-      (.printAll c, g)
-      (.dispose g))
-    (.end job)))
+
+(defmacro proxy-super-class
+  [class-symbol, meth, & args]
+  (let [class (resolve class-symbol),
+        _ (assert (class? class) "class-symbol must refer to a class")
+        this-symbol (with-meta 'this
+                      {:tag (symbol (.getCanonicalName ^Class class))})]
+    `(proxy-call-with-super (fn [] (. ~this-symbol ~meth ~@args)) ~this-symbol ~(name meth))))

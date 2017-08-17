@@ -7,8 +7,10 @@
 ; You must not remove this notice, or any other, from this software.
 
 (ns swing.tools
-  {:author "Gunnar Völkel"})
+  {:author "Gunnar Völkel"}
+  (:import (java.awt Window)))
 
 
 (defn close-all-windows []
-  (doseq [wnd (java.awt.Window/getWindows)] (.dispose wnd)))
+  (doseq [^Window wnd (Window/getWindows)]
+    (.dispose wnd)))

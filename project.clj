@@ -1,4 +1,4 @@
-(defproject clj-gui "0.3.4"
+(defproject clj-gui "0.3.5"
   :description "GUI library for SwingX JXTreeTable and tools."
   :url "https://github.com/guv/clj-debug"
   :license {:name "Eclipse Public License"
